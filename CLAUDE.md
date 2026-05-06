@@ -14,6 +14,7 @@ processed is assumed PHI. See [SECURITY.md](SECURITY.md) for controls and compli
 - Lint: `task lint`
 - Run server locally: `./myapp serve` (port :8080, override with `MYAPP_LISTEN_ADDR`)
 - Deploy: push to `main`; [build.yml](.github/workflows/build.yml) builds + pushes to the configured registry
+- Security scans: [security.yml](.github/workflows/security.yml) runs Trivy filesystem, TruffleHog, and Zizmor on every PR (org reusable workflows)
 
 ## Key Paths
 | Path | Purpose |

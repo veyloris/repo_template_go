@@ -13,7 +13,7 @@ Opinionated template for Go services that ship as a container image. Stand up a 
 | Container | Multi-stage build, `gcr.io/distroless/static-debian12:nonroot`, digest-pinned |
 | Lint | [golangci-lint v2](https://golangci-lint.run) with errorlint, gosec, bodyclose, contextcheck, revive, and friends |
 | Pre-commit | gitleaks, golangci-lint, gofmt, go-mod-tidy, shellcheck, JSON-schema checks for workflows and Taskfile |
-| CI | GitHub Actions: PR validate (build / vet / test -race / lint), main build + push to ACR |
+| CI | GitHub Actions: PR validate (build / vet / test -race / lint), main build + push to ACR, defense-in-depth security scans (Trivy filesystem, TruffleHog, Zizmor) |
 | Compliance scaffolding | `SECURITY.md` template aligned with HIPAA, SOC 2, ISO 27001, HITRUST |
 
 ## Use this template
@@ -62,7 +62,7 @@ task lint            # golangci-lint v2
 │   ├── migrations/             # phased rollout plans (per CLAUDE.md preference)
 │   └── operations/             # runbooks, oncall references
 ├── scripts/init-template.sh    # rename helper
-├── .github/workflows/          # validate (PR) + build (main)
+├── .github/workflows/          # validate (PR) + build (main) + security (PR + push)
 ├── .golangci.yml               # v2 baseline; tune per project
 ├── .pre-commit-config.yaml     # gitleaks + lint + format + filesystem checks
 ├── Dockerfile                  # multi-stage distroless, digest-pinned

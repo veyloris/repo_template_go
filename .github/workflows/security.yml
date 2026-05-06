@@ -1,0 +1,38 @@
+name: Security Scans
+
+# Defense-in-depth scans complementing the container scan in build.yml
+# (which runs Trivy against the built image via acr-build-scan-push):
+#   - Trivy filesystem scan: catches CVEs in Go modules, IaC misconfigs
+#   - TruffleHog: secret detection on the PR diff (gitleaks runs locally
+#     via pre-commit; this is the CI gate for anyone who bypasses it)
+#   - Zizmor: GitHub Actions workflow security audit
+#
+# All three are veyloris org-internal reusable workflows. If you
+# fork this template outside the org, replace these `uses:` references
+# with public alternatives (aquasecurity/trivy-action,
+# trufflesecurity/trufflehog, zizmorcore/zizmor-action) or with your
+# own org's reusable equivalents.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trivy-repo-scan:
+    name: Trivy Repository Scan
+    uses: veyloris/.github/.github/workflows/trivy-repo-scan.yml@main
+
+  trufflehog:
+    name: TruffleHog Secret Scan
+    if: github.event_name == 'pull_request'
+    uses: veyloris/.github/.github/workflows/trufflehog-secret-scan.yml@main
+
+  zizmor:
+    name: Zizmor Workflow Security Scan
+    uses: veyloris/.github/.github/workflows/zizmor-scan.yml@main

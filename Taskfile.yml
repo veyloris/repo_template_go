@@ -1,0 +1,62 @@
+version: "3"
+
+vars:
+  BINARY: myapp
+  PKG: ./cmd/myapp/
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo dev
+
+tasks:
+  build:
+    desc: Build the binary
+    cmds:
+      - go build -ldflags="-X github.com/myorg/myapp/internal/version.Commit={{.COMMIT}}" -o {{.BINARY}} {{.PKG}}
+    sources:
+      - "**/*.go"
+    generates:
+      - "{{.BINARY}}"
+
+  test:
+    desc: Run tests with race detector and coverage
+    cmds:
+      - go test -race -coverprofile=coverage.out ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  fmt:
+    desc: Format code
+    cmds:
+      - gofmt -w .
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  tidy:
+    desc: Tidy go.mod
+    cmds:
+      - go mod tidy
+
+  run:
+    desc: Build and run the binary
+    deps: [build]
+    cmds:
+      - ./{{.BINARY}} {{.CLI_ARGS}}
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -f {{.BINARY}} coverage.out
+
+  all:
+    desc: Run fmt, vet, lint, test, and build
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: lint
+      - task: test
+      - task: build

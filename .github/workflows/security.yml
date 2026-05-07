@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  actions: read   # required by trivy-repo-scan.yml (Trivy action telemetry)
 
 jobs:
   trivy-repo-scan:

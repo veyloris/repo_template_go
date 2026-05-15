@@ -27,13 +27,20 @@ repos:
         # is built with a Go new enough to load the project's Go version.
         language_version: "1.26.2"
 
-  - repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.1
+  - repo: local
     hooks:
       - id: go-fmt
         name: "go - Format with gofmt"
+        entry: gofmt -l -w
+        language: system
+        types: [go]
+        pass_filenames: true
       - id: go-mod-tidy
         name: "go - Tidy go.mod"
+        entry: go mod tidy
+        language: system
+        files: '(go\.mod|go\.sum)$'
+        pass_filenames: false
 
   # ------------------------- Data & Config Validation ----------------------- #
 

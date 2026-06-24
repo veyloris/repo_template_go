@@ -48,3 +48,6 @@ bin/
 
 # Cache
 .cache/
+
+# Claude Code parallel-session worktrees
+.claude/worktrees/

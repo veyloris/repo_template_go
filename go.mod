@@ -2,7 +2,7 @@ module github.com/myorg/myapp
 
 go 1.22
 
-toolchain go1.26.2
+toolchain go1.26.4
 
 require github.com/spf13/cobra v1.10.2
 

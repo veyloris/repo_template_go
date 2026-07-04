@@ -1,0 +1,17 @@
+# Zizmor configuration. Enforced in CI by the org reusable workflow
+# (veyloris/.github zizmor-scan.yml), which runs `zizmor .` from the
+# repo root and discovers this file automatically.
+#
+# Action pinning policy (see SECURITY.md, "CI/CD Supply Chain"):
+#   - Third-party actions MUST be pinned to a full commit SHA (hash-pin).
+#   - veyloris org-internal actions and reusable workflows MAY be
+#     referenced by ref (@main). They sit inside the same organizational
+#     trust boundary, and tracking @main is deliberate so centrally managed
+#     security tooling updates propagate to all repos without per-repo
+#     pin bumps.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        veyloris/*: ref-pin
+        "*": hash-pin

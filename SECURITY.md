@@ -112,6 +112,23 @@ myapp container
       drop: [ALL]
   ```
 
+## CI/CD Supply Chain
+
+GitHub Actions workflows are audited by zizmor on every PR and push to `main`
+(via the org reusable `zizmor-scan.yml` workflow). The action pinning policy is
+enforced through [.github/zizmor.yml](.github/zizmor.yml):
+
+- **Third-party actions** (e.g. `actions/checkout`, `golangci/golangci-lint-action`)
+  must be pinned to a full commit SHA, with the tag recorded in a trailing
+  comment. Renovate keeps these digests current.
+- **`veyloris` org-internal actions and reusable workflows** may be
+  referenced by ref (`@main`). These live inside the same organizational trust
+  boundary (write access to them already implies control of org CI), and
+  tracking `@main` ensures centrally managed security scanning improvements
+  propagate to all repos immediately rather than waiting on per-repo pin bumps.
+
+Container base images are pinned by digest (see Container Hardening below).
+
 ## Destructive Operations
 
 [REPLACE: enumerate the destructive operations this service can perform and the safeguards in place. If the service is read-only, state that.]

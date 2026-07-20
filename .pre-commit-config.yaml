@@ -7,6 +7,12 @@ fail_fast: true
 default_install_hook_types:
   - pre-commit
   - commit-msg
+  - pre-push
+# Hooks without an explicit `stages:` run only at commit; the pre-push stage
+# below is opt-in (build + tests), so installing pre-push does not double-run
+# the lint/format hooks on every push.
+default_stages:
+  - pre-commit
 repos:
   # ----------------------------- Security Tools ----------------------------- #
 
@@ -41,6 +47,29 @@ repos:
         language: system
         files: '(go\.mod|go\.sum)$'
         pass_filenames: false
+      - id: go-vet
+        name: "go - Vet (mirrors CI validate)"
+        entry: go vet ./...
+        language: system
+        files: '\.go$|^go\.(mod|sum)$'
+        pass_filenames: false
+      # Build and tests are pre-PUSH, not pre-commit: -short skips
+      # docker-dependent suites, mirroring CI's validate job so trivial
+      # breakage never burns a billed CI run.
+      - id: go-build
+        name: "go - Build (pre-push)"
+        entry: go build ./...
+        language: system
+        files: '\.go$|^go\.(mod|sum)$'
+        pass_filenames: false
+        stages: [pre-push]
+      - id: go-test-short
+        name: "go - Test -short (pre-push)"
+        entry: go test -short ./...
+        language: system
+        files: '\.go$|^go\.(mod|sum)$'
+        pass_filenames: false
+        stages: [pre-push]
 
   # ------------------------- Data & Config Validation ----------------------- #
 

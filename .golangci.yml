@@ -9,6 +9,7 @@ linters:
   enable:
     - bodyclose
     - contextcheck
+    - dupl
     - errorlint
     - gocritic
     - gosec
@@ -54,9 +55,21 @@ linters:
       - path: _test\.go
         linters:
           - bodyclose
+          - dupl
           - errcheck
           - gosec
           - noctx
+      # Generated code (e.g. sqlc output): regenerate, never hand-edit or
+      # hand-lint. Uncomment and point at the generated dir when one exists.
+      # - path: internal/store/storegen/
+      #   linters:
+      #     - govet
+      #     - revive
+      #     - gocritic
+      #     - gosec
+      #     - errcheck
+      #     - errorlint
+      #     - unconvert
 
 formatters:
   enable:

@@ -36,7 +36,7 @@ jobs:
     name: Trivy Repository Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Trivy filesystem scan
@@ -53,7 +53,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -68,15 +68,23 @@ jobs:
     name: Zizmor Workflow Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # uv is NOT preinstalled on GitHub-hosted runner images; install it
+      # explicitly rather than assuming the runner provides it. setup-uv is a
+      # node action, so this also works on Kubernetes-mode self-hosted runners.
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+
       - name: Zizmor audit
-        # Run zizmor via uvx (uv ships on hosted runner images) rather than
-        # the Docker-backed zizmor-action, so this job also works unchanged
-        # on Kubernetes-mode runners. Config auto-loads from
-        # .github/zizmor.yml; non-zero exit on findings. GH_TOKEN enables the
-        # online audits.
+        # Run zizmor via uvx rather than the Docker-backed zizmor-action, so
+        # this job also works unchanged on Kubernetes-mode runners. Config
+        # auto-loads from .github/zizmor.yml; non-zero exit on findings.
+        # GH_TOKEN enables the online audits -- including
+        # ref-version-mismatch, which is why the pins below carry exact patch
+        # versions (# v7.0.1) rather than floating majors (# v7): when
+        # upstream moves a floating tag, a major-only comment fails the audit.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uvx zizmor==1.27.0 .

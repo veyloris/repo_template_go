@@ -13,8 +13,9 @@ Opinionated template for Go services that ship as a container image. Stand up a 
 | Container | Multi-stage build, `gcr.io/distroless/static-debian12:nonroot`, digest-pinned |
 | Lint | [golangci-lint v2](https://golangci-lint.run) with errorlint, gosec, bodyclose, contextcheck, revive, and friends |
 | Pre-commit | gitleaks, golangci-lint, gofmt, go-mod-tidy, shellcheck, JSON-schema checks for workflows and Taskfile |
-| CI | GitHub Actions: PR validate (build / vet / test -race / lint), main build + push to ACR, defense-in-depth security scans (Trivy filesystem, TruffleHog, Zizmor) |
+| CI | GitHub Actions: PR validate (build / vet / test -race / lint, split into a docker-free `-short` job and a full testcontainers job), main build + push, defense-in-depth security scans (Trivy filesystem, TruffleHog, Zizmor) |
 | Compliance scaffolding | `SECURITY.md` template aligned with HIPAA, SOC 2, ISO 27001, HITRUST |
+| Process scaffolding | Decision log (`docs/DECISIONS.md`), migration-plan convention with validation appendices (`docs/migrations/`), testing and database doctrine (`docs/development/`) |
 
 ## Use this template
 
@@ -58,8 +59,9 @@ task lint            # golangci-lint v2
 │   ├── server/                 # HTTP server: probes, graceful shutdown
 │   └── version/                # build-version injection via ldflags
 ├── docs/
-│   ├── development/            # local dev notes (port-forward recipes, etc.)
-│   ├── migrations/             # phased rollout plans (per CLAUDE.md preference)
+│   ├── DECISIONS.md            # decision log: D-### entries, recorded when made
+│   ├── development/            # testing.md + database.md doctrine, local dev notes
+│   ├── migrations/             # phased plans with validation appendices (see README.md there)
 │   └── operations/             # runbooks, oncall references
 ├── scripts/init-template.sh    # rename helper
 ├── .github/workflows/          # validate (PR) + build (main) + security (PR + push)
@@ -73,6 +75,18 @@ task lint            # golangci-lint v2
 
 ## Opinions baked in
 
+- **TDD, mechanically.** Tests are written before implementation. The domain
+  core is pure Go with no I/O (unit and property tests only); I/O lives in
+  adapters tested with testcontainers and golden files. Docker-dependent
+  suites hide behind `testing.Short()`, so `go test -short ./...` is always a
+  docker-free gate. The full doctrine -- including migration data-path
+  testing and differential harnesses for ports of existing systems -- is in
+  [docs/development/testing.md](docs/development/testing.md).
+- **Decisions get written down.** Architecture and process decisions go in
+  [docs/DECISIONS.md](docs/DECISIONS.md) as short D-### entries when they are
+  made. Anything above moderate complexity gets a plan doc in
+  `docs/migrations/` with a state field and a before/after validation
+  appendix ([convention](docs/migrations/README.md)).
 - **`internal/` only, no `pkg/`.** This template assumes you are shipping an application, not a library. If you genuinely need to expose code to other modules, add a `pkg/` directory yourself.
 - **stdlib first.** Logging is `log/slog`. HTTP is `net/http`. Errors are `fmt.Errorf("...: %w", err)`. The only direct dependency is cobra; everything else is the standard library. Resist the urge to pull in zap, logrus, gin, chi, gorilla, or pkg/errors.
 - **Context everywhere.** Public functions take `ctx context.Context` as the first argument. The server's lifetime context is propagated to background work so cancellation reaches running goroutines.
@@ -82,7 +96,7 @@ task lint            # golangci-lint v2
 
 ## What is intentionally not included
 
-- Database layer, ORM, migrations tooling. Add when you have a real schema.
+- Database layer, ORM, migrations tooling. Add when you have a real schema — and when you do, follow the proven recipe in [docs/development/database.md](docs/development/database.md): embedded goose chain, caged migrate role with a separate DSN, sqlc with the goose chain as its schema source, role-faithful integration tests.
 - Metrics / tracing libraries. Add `prometheus/client_golang` or OpenTelemetry once you know what to instrument.
 - Config loading framework (viper, koanf). Use `os.Getenv` and a small struct; add a loader if it earns its keep.
 - A `Makefile`. Use Taskfile.

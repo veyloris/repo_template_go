@@ -8,38 +8,103 @@ on:
       - "docs/**"
   workflow_dispatch:
 
+# Back-to-back merges to main supersede each other; the newest commit's image
+# contains the older ones, so cancel the stale build. Safe to cancel mid-run:
+# tags are pushed only at the very end.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Publishes ghcr.io/<owner>/<repo> via crane append: the statically-linked
+# binary is built by this job and appended as a single layer onto the
+# digest-pinned distroless base, then the runtime config is set to match the
+# Dockerfile. No Dockerfile RUN execution happens here, which keeps this job
+# viable on restricted runners (no docker daemon needed). The Dockerfile
+# remains the local-dev build path AND the single source of truth for the
+# base image digest (this workflow greps it out; Renovate keeps updating the
+# Dockerfile pin). Publishing to a different registry: swap the crane auth
+# login and IMG values.
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
-      actions: read
+      packages: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
+          # Publishing workflow: no module cache (zizmor cache-poisoning).
+          cache: false
 
       - name: Test
+        # On a docker-less restricted runner, change to `go test -short -race`
+        # and let validate.yml's integration job carry the full suite.
         run: go test -race ./...
 
-      # Replace this Azure-specific block with whatever registry login you need
-      # (docker/login-action for Docker Hub, aws-actions/configure-aws-credentials
-      # for ECR, docker/login-action targeting ghcr.io for GHCR, etc.)
-      - name: Azure Login (OIDC)
-        uses: veyloris/.github/actions/azure-oidc-login@main
-        with:
-          client-id: ${{ secrets.AZURE_SHARED_ACR_CLIENT_ID }}
-          tenant-id: ${{ vars.DAFT_AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.DAFT_AZURE_SUBSCRIPTION_ID }}
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux go build \
+            -ldflags="-s -w -X github.com/myorg/myapp/internal/version.Commit=${GITHUB_SHA}" \
+            -o myapp ./cmd/myapp/
 
-      - name: Build, Scan & Push
-        uses: veyloris/.github/actions/acr-build-scan-push@main
-        with:
-          image-name: myapp
-          acr-registry: ${{ vars.ACR_REGISTRY_NPE }}
-          build-args: |
-            COMMIT=${{ github.sha }}
+      - name: Install crane
+        # SHA256-verified against the release checksums file.
+        run: |
+          if command -v crane >/dev/null; then
+            echo "crane already present: $(crane version)"
+            exit 0
+          fi
+          CRANE_VERSION=0.21.7
+          curl -fsSL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" -o /tmp/crane.tar.gz
+          curl -fsSL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/checksums.txt" -o /tmp/crane-checksums.txt
+          EXPECTED=$(awk '$2 == "go-containerregistry_Linux_x86_64.tar.gz" {print $1}' /tmp/crane-checksums.txt)
+          echo "${EXPECTED}  /tmp/crane.tar.gz" | sha256sum --check
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf /tmp/crane.tar.gz -C "$HOME/.local/bin" crane
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Assemble and push
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMG: ghcr.io/${{ github.repository }}
+        run: |
+          # Base digest comes from the Dockerfile so Renovate bumps flow here.
+          BASE=$(awk '$1 == "FROM" && $2 ~ /^gcr.io\/distroless\// {print $2}' Dockerfile)
+          test -n "$BASE"
+          echo "base: ${BASE}"
+
+          crane auth login ghcr.io -u "${GITHUB_ACTOR}" -p "${GHCR_TOKEN}"
+
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+          tar --owner=0 --group=0 --mode=0755 -cf /tmp/layer.tar myapp
+          crane append -b "${BASE}" -f /tmp/layer.tar -t "${IMG}:${SHA_TAG}"
+          # Runtime config parity with the Dockerfile (ENTRYPOINT/CMD/USER).
+          crane mutate \
+            --entrypoint "/myapp" \
+            --cmd "serve" \
+            --user "nonroot:nonroot" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            -t "${IMG}:${SHA_TAG}" "${IMG}:${SHA_TAG}"
+          crane tag "${IMG}:${SHA_TAG}" main
+
+      - name: Verify pushed config
+        env:
+          IMG: ghcr.io/${{ github.repository }}
+        run: |
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+          crane config "${IMG}:${SHA_TAG}" > /tmp/cfg.json
+          grep -q '"/myapp"' /tmp/cfg.json
+          grep -q '"serve"' /tmp/cfg.json
+          grep -q '"nonroot:nonroot"' /tmp/cfg.json
+          echo "verified $(crane digest "${IMG}:${SHA_TAG}") (tags: ${SHA_TAG}, main)"

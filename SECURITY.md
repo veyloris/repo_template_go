@@ -114,18 +114,18 @@ myapp container
 
 ## CI/CD Supply Chain
 
-GitHub Actions workflows are audited by zizmor on every PR and push to `main`
-(via the org reusable `zizmor-scan.yml` workflow). The action pinning policy is
+GitHub Actions workflows are audited by zizmor on every PR (see
+[security.yml](.github/workflows/security.yml)). The action pinning policy is
 enforced through [.github/zizmor.yml](.github/zizmor.yml):
 
-- **Third-party actions** (e.g. `actions/checkout`, `golangci/golangci-lint-action`)
+- **All actions** (e.g. `actions/checkout`, `golangci/golangci-lint-action`)
   must be pinned to a full commit SHA, with the tag recorded in a trailing
   comment. Renovate keeps these digests current.
-- **`veyloris` org-internal actions and reusable workflows** may be
-  referenced by ref (`@main`). These live inside the same organizational trust
-  boundary (write access to them already implies control of org CI), and
-  tracking `@main` ensures centrally managed security scanning improvements
-  propagate to all repos immediately rather than waiting on per-repo pin bumps.
+- This template uses no org-internal reusable workflows. If your org adds
+  some inside its own trust boundary, they may be referenced by ref
+  (`@main`) so centrally managed security tooling propagates without
+  per-repo pin bumps; add the corresponding `ref-pin` policy to
+  `.github/zizmor.yml` and record the rationale here.
 
 Container base images are pinned by digest (see Container Hardening below).
 

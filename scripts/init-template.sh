@@ -36,6 +36,11 @@ fi
 
 OLD_MODULE="github.com/myorg/myapp"
 OLD_BINARY="myapp"
+# Env vars and DB role names embed the binary name in forms that a \b-anchored
+# substitution cannot reach: MYAPP_LISTEN_ADDR (uppercase) and svc_myapp
+# (underscore is a word character, so there is no boundary before "myapp").
+OLD_BINARY_UPPER="${OLD_BINARY^^}"
+BINARY_NAME_UPPER="${BINARY_NAME^^}"
 
 if [[ "$MODULE_PATH" == "$OLD_MODULE" && "$BINARY_NAME" == "$OLD_BINARY" ]]; then
     echo "error: refusing to rename to the placeholder values" >&2
@@ -56,13 +61,21 @@ echo "==> Rewriting $OLD_BINARY -> $BINARY_NAME"
 # Rewrite occurrences. Order matters: the module path must be rewritten before
 # the binary name, otherwise we'll mangle paths like github.com/myorg/myapp
 # into github.com/myorg/<new-binary>.
+# In a freshly `git init`-ed clone -- the README's "clone manually" flow, which
+# does `rm -rf .git && git init` -- `git ls-files` exits 0 with NO output. A
+# plain `||` fallback therefore never fires and the rewrite loop below iterates
+# zero times, silently producing a half-renamed tree. Test for actual output,
+# not just exit status.
 files_to_rewrite() {
-    git ls-files -z 2>/dev/null || \
+    if [[ -n "$(git ls-files 2>/dev/null | head -n 1)" ]]; then
+        git ls-files -z
+    else
         find . -type f \
             -not -path './.git/*' \
             -not -path './scripts/init-template.sh' \
             -not -path './node_modules/*' \
             -print0
+    fi
 }
 
 while IFS= read -r -d '' file; do
@@ -70,8 +83,10 @@ while IFS= read -r -d '' file; do
         ./scripts/init-template.sh) continue ;;
         ./.git/*) continue ;;
     esac
-    if grep -q "$OLD_MODULE\|$OLD_BINARY" "$file" 2>/dev/null; then
+    if grep -q "$OLD_MODULE\|$OLD_BINARY\|$OLD_BINARY_UPPER" "$file" 2>/dev/null; then
         sed -i "s|$OLD_MODULE|$MODULE_PATH|g" "$file"
+        sed -i "s|${OLD_BINARY_UPPER}_|${BINARY_NAME_UPPER}_|g" "$file"
+        sed -i "s|svc_${OLD_BINARY}|svc_${BINARY_NAME}|g" "$file"
         sed -i "s|\\b$OLD_BINARY\\b|$BINARY_NAME|g" "$file"
     fi
 done < <(files_to_rewrite)
@@ -88,6 +103,17 @@ go mod tidy
 
 echo "==> Verifying build"
 go build ./...
+
+# Fail loudly rather than deleting the only tool that can finish the job. A
+# half-renamed tree that still reports success is worse than an error.
+echo "==> Verifying no placeholders remain"
+if remaining=$(grep -rIl -e "$OLD_MODULE" -e "\\b$OLD_BINARY\\b" -e "${OLD_BINARY_UPPER}_" . \
+        --exclude-dir=.git --exclude="$(basename "$0")" 2>/dev/null); then
+    echo "error: placeholder values still present in:" >&2
+    echo "$remaining" >&2
+    echo "the tree is only partly renamed; fix these before rerunning" >&2
+    exit 1
+fi
 
 echo "==> Removing init script"
 rm -- "$0"

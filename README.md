@@ -105,3 +105,13 @@ task lint            # golangci-lint v2
 ## Compliance posture
 
 This template assumes the resulting service operates under HIPAA, SOC 2, ISO 27001, and HITRUST. `SECURITY.md` documents the default controls (no-shell runtime, digest-pinned base images, nonroot user, structured audit logs, secrets via env-injection from a secret manager). When you instantiate, edit `SECURITY.md` to reflect the actual data classification, integrations, and access patterns of your service.
+
+`SECURITY.md` describes the controls this scaffold provides; it is not an attestation about your deployment. Statements there become true of your service only once you have configured it that way.
+
+## Reporting a vulnerability
+
+Report security issues privately through this repository's GitHub Security Advisories ("Report a vulnerability" under the Security tab) rather than opening a public issue.
+
+## License
+
+[MIT](LICENSE).

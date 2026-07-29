@@ -5,6 +5,10 @@ vars:
   PKG: ./cmd/myapp/
   COMMIT:
     sh: git rev-parse --short HEAD 2>/dev/null || echo dev
+  # golang.org/x/perf carries no semver tags, so a pseudo-version is the pin.
+  BENCHSTAT: golang.org/x/perf/cmd/benchstat@v0.0.0-20260709024250-82a0b07e230d
+  BASELINE: .github/benchmarks/baseline.txt
+  BENCH_OUT: bench-current.txt
 
 tasks:
   build:
@@ -20,6 +24,28 @@ tasks:
     desc: Run tests with race detector and coverage
     cmds:
       - go test -race -coverprofile=coverage.out ./...
+
+  bench:
+    desc: Run every benchmark into bench-current.txt (no tests, no docker, no race)
+    cmds:
+      # -run '^$' is load-bearing: it selects no test, which is what keeps the
+      # testcontainers suites from starting docker during a benchmark run.
+      # -race is deliberately absent -- roughly 10x cost, and the numbers then
+      # compare to nothing.
+      - go test -run '^$' -bench . -benchmem -count 6 -timeout 30m ./... | tee {{.BENCH_OUT}}
+
+  bench-compare:
+    desc: benchstat the committed baseline against a fresh run
+    deps: [bench]
+    cmds:
+      - go run {{.BENCHSTAT}} {{.BASELINE}} {{.BENCH_OUT}}
+
+  bench-baseline:
+    desc: Re-record the committed baseline; commit the diff and justify any moved number in the PR
+    deps: [bench]
+    cmds:
+      - mkdir -p $(dirname {{.BASELINE}})
+      - cp {{.BENCH_OUT}} {{.BASELINE}}
 
   lint:
     desc: Run golangci-lint
@@ -50,10 +76,12 @@ tasks:
   clean:
     desc: Remove build artifacts
     cmds:
-      - rm -f {{.BINARY}} coverage.out
+      - rm -f {{.BINARY}} coverage.out {{.BENCH_OUT}}
 
   all:
     desc: Run fmt, vet, lint, test, and build
+    # bench is deliberately not here: all is the pre-commit loop and has to
+    # stay fast. Run task bench-compare when you touch a hot path.
     cmds:
       - task: fmt
       - task: vet

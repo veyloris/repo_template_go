@@ -159,5 +159,90 @@ quick.Check(fn, &quick.Config{MaxCount: 2000})
 ## Benchmarks
 
 Benchmarks use the Go 1.24+ `for b.Loop()` form, are sized to production
-scale, and state their acceptance target in a comment ("full recompute well
-under 1s at 54k SKUs") so a regression is a red number, not a shrug.
+scale, and state their acceptance target in the doc comment so a regression
+is a red number, not a shrug.
+
+**A benchmark with no written target cannot fail, so it cannot regress.** The
+target and the derivation that produced it belong in the doc comment, not in
+whoever wrote it:
+
+```go
+// BenchmarkWidgetSummaryFold folds one full reporting window in memory.
+//
+// Target: under 250ms at 200k widgets. The handler that calls it has a 2s
+// budget and spends ~1.2s in queries, so the fold has to stay well inside
+// the remainder or the page is the fold.
+func BenchmarkWidgetSummaryFold(b *testing.B) { ... }
+```
+
+**Targets are checked by humans and `benchstat`, never a time-based
+`b.Fatalf`.** Shared CI runners are far too noisy for a latency threshold;
+a wall-clock assertion there fails on neighbors, gets marked flaky, and then
+gets deleted. Only correctness invariants may fail a benchmark -- and they
+should: a conservation law or an expected output count also stops a
+benchmark from silently measuring a fold that early-returned on degenerate
+input.
+
+**Benchmarks rank; telemetry attributes.** A benchmark is measured on the
+developer's CPU and a request latency on the deployment's, and the same code
+can be several times slower on a small throttled container. Dividing a
+benchmark number into a production latency to get a "share of the request"
+is a real and easy mistake that yields a figure wrong by an order of
+magnitude. Use benchmarks to compare versions of the same code on the same
+machine and to catch regressions; use production histograms to attribute
+where a request's time actually goes.
+
+**Fixture generators are synthetic, deterministic, and
+scale-parameterised.** They live in their own package
+(`internal/fixtures`), are seeded from a fixed seed so runs compare, and are
+never seeded from a production dump or an anonymized extract -- a
+git-tracked fixture carries none of the access controls the source rows sit
+behind, and "anonymized" is a claim nobody re-checks after the first commit.
+Make scale a parameter, so "at twice the data, is this twice the time or
+four times?" is a benchmark rather than an opinion. Identity-shaped
+generated values (names, emails, account numbers) should be obviously fake,
+so a leaked fixture can never be mistaken for real data.
+
+**Guard the fixture package's import graph with a test.** If the generators
+import the store package they drag the database driver into the test binary
+of every pure package that uses them, and the pure packages quietly stop
+being cheap. Ask the toolchain rather than grepping, because the hazard is a
+*transitive* import:
+
+```go
+func TestFixturesDoNotDependOnStore(t *testing.T) {
+    out, err := exec.Command("go", "list", "-deps",
+        "github.com/myorg/myapp/internal/fixtures").Output()
+    if err != nil {
+        t.Fatalf("go list -deps: %v", err)
+    }
+    for _, dep := range strings.Fields(string(out)) {
+        if dep == "github.com/myorg/myapp/internal/store" ||
+            strings.HasPrefix(dep, "github.com/jackc/pgx") {
+            t.Errorf("fixtures must not depend on %s", dep)
+        }
+    }
+}
+```
+
+A second `go list -deps ./cmd/myapp` test asserting `internal/fixtures` is
+absent keeps a test-only generator from being linked into the shipped
+binary.
+
+**A degenerate corpus is worse than no benchmark.** Well-typed fixture data
+that makes every fold hit its empty-input branch produces a fast number that
+means nothing, and it will be quoted. Have the generator self-check the
+invariants the code under test actually depends on -- non-empty groups,
+matching join keys, values in the ranges the branches care about -- and fail
+loudly when it produces a corpus that does not exercise them.
+
+**`go test -bench` and containers.** `-run '^$'` selects no test, which is
+what keeps testcontainers suites from starting docker during a benchmark
+run. That holds only while no `TestMain` starts a container unconditionally;
+if you add one, it must respect `testing.Short()`. Never combine `-race`
+with benchmarks -- roughly 10x cost, and the resulting numbers compare to
+nothing.
+
+Run them with `task bench`, compare with `task bench-compare`, re-record
+with `task bench-baseline`. The committed baseline lives in
+[.github/benchmarks/](../../.github/benchmarks/).

@@ -13,6 +13,9 @@
 *.out
 coverage.html
 
+# Benchmark scratch output (the committed baseline lives in .github/benchmarks/)
+/bench-current.txt
+
 # Go workspace
 go.work
 go.work.sum

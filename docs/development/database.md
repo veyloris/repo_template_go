@@ -124,6 +124,48 @@ sql:
   testcontainers. Never mock sqlc: the generated layer's value is that it is
   compile-time checked, and mocking it tests the mock.
 
+That shape is right for I/O. It is wrong for computation.
+
+**Pure computation does not live on a store receiver.** `base` has no
+exported constructor, so the only way to obtain a receiver is to dial
+Postgres -- which means anything reachable only through it needs a live
+database to exercise. A fold that is genuinely pure but unreachable without
+Postgres will not get benchmarked, and in practice does not: standing up a
+container to time in-memory arithmetic is enough friction that nobody pays
+it, and the hot path ends up the one part of the domain core with no numbers
+on it.
+
+When a method loads rows and then folds them, split it in three:
+
+```go
+// I/O only. One query set, no computation.
+func (s *Store) loadWidgetInputs(ctx context.Context, since time.Time) (WidgetInputs, error) {
+    rows, err := s.q.WidgetsSince(ctx, since)
+    if err != nil {
+        return WidgetInputs{}, fmt.Errorf("load widget inputs: %w", err)
+    }
+    return WidgetInputs{Widgets: rows}, nil
+}
+
+// Pure. No receiver, no ctx, no pool -- exported so a benchmark can call it.
+func WidgetSummaryFold(in WidgetInputs) Summary { ... }
+
+// Thin delegate. The original method, so no caller changes.
+func (s *Store) WidgetSummary(ctx context.Context, since time.Time) (Summary, error) {
+    in, err := s.loadWidgetInputs(ctx, since)
+    if err != nil {
+        return Summary{}, err
+    }
+    return WidgetSummaryFold(in), nil
+}
+```
+
+Two things fall out of the split for free. It is the natural seam for
+timing, so query time and compute time are two numbers instead of one opaque
+one. And a synthetic fixture can drive the fold directly with no database,
+which is what makes a scale-parameterised benchmark possible at all --
+see [testing.md](testing.md).
+
 ## Dependencies
 
 `github.com/jackc/pgx/v5` (driver + pool), `github.com/pressly/goose/v3`

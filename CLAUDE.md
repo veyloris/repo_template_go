@@ -6,6 +6,8 @@ processed is assumed PHI. See [SECURITY.md](SECURITY.md) for controls and compli
 ### Unfinished Todos
 - Replace `myapp` and `github.com/myorg/myapp` placeholders with real values via `./scripts/init-template.sh`
 - Edit `SECURITY.md` to reflect this service's actual data flow, classifications, and integrations
+- Confirm the "CVE triage manifest" section below reflects this service's real
+  gates -- the init script rewrites the repository name, not the workflow facts
 - Replace this CLAUDE.md's "Common Tasks", "Key Paths", and "Architecture" sections with project-specific content
 - Date D-001 in `docs/DECISIONS.md` (the scaffold entry) with the instantiation date
 - Record the first real benchmark's written acceptance target, then re-record
@@ -107,3 +109,32 @@ conflict to the user and ask for input.
 - Compliance and security controls documented in [SECURITY.md](SECURITY.md).
   When a feature adds a data flow, SECURITY.md gains a controls subsection
   for it, referencing the D-### entries and plan doc that shaped it.
+
+## CVE triage manifest
+
+Consumed by the `/cve-ci-triage` skill (user-level, `~/.claude/skills/`). The
+skill is the method; this section is this repository's facts. A repo cut from
+this template is onboarded by running `./scripts/init-template.sh`, which
+rewrites the `Repository` field below along with every other placeholder. No
+hand-editing is required here.
+
+- **Repository:** github.com/myorg/myapp
+- **Ecosystem:** go (`go.mod`)
+- **Scan gates:**
+  | Workflow name | Job | File | Trigger | Target | Severity | ignore-unfixed | Red signal |
+  |---|---|---|---|---|---|---|---|
+  | Security Scans | Trivy Repository Scan | `.github/workflows/security.yml` | PR to main, Monday 14:00 UTC, dispatch | filesystem (`.`) | CRITICAL,HIGH | true | failed run only -- no tracking issue is opened |
+- **Ignore files:** `.trivyignore.yaml` (repo root), YAML form, wired through the
+  `trivyignores` input on the scan step.
+- **Pin locations:** `go.mod` (application dependencies). `build.yml` builds and
+  pushes but runs no Trivy scan, so no image base or tool binary is CVE-gated.
+- **Pre-authorized merges:** trivyignore entries, dependency bumps, and green
+  Renovate PRs may be self-merged. NetworkPolicy, RBAC, and secrets are not.
+- **Repo notes:**
+  - There is no tracking issue and no `issues: write` permission. A failed
+    scheduled run on main is the only red signal, so check
+    `gh run list --workflow "Security Scans"` rather than `gh issue list`.
+  - Scans run on `ubuntu-latest`. A repo cut from this template that adopts the
+    ARC runners should change `runs-on` in `security.yml` and say so here.
+  - The weekly Monday run is the one that catches newly published CVEs against
+    unchanged code; a PR run only sees the PR's own tree.

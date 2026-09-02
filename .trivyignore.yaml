@@ -1,0 +1,25 @@
+# Trivy ignore file (YAML form: `expired_at` is enforced -- after the date Trivy
+# stops honoring the entry and the finding gates CI again, forcing a re-review).
+#
+# This file is deliberately empty. It exists so that a time-boxed risk
+# acceptance has a home the CI gate already reads, rather than being invented
+# under time pressure during a red build.
+#
+# Every entry MUST carry, in this order:
+#   1. A RISK ACCEPTANCE comment block directly above it, stating: the sign-off
+#      date, the expiry date, what the CVE is, why it is not fixable upstream
+#      (naming the exact latest versions checked), the exploitability rationale
+#      in this service's context, and the exit path -- the condition under
+#      which the entry is removed early.
+#   2. `id`, exactly as Trivy reports it (GHSA-xxxx for Go advisories,
+#      CVE-xxxx otherwise). A re-keyed advisory silently stops matching.
+#   3. `paths`, scoped to the specific module or binary. Never unscoped.
+#   4. `statement`.
+#   5. `expired_at`, roughly 90 days out.
+#
+# Prefer bumping over ignoring whenever upstream has shipped a fix. When a bump
+# clears an ignored CVE, delete the block in the same PR.
+#
+# Method: the /cve-ci-triage skill. Facts: the "CVE triage manifest" section of
+# CLAUDE.md.
+vulnerabilities: []

@@ -46,6 +46,9 @@ jobs:
           scan-ref: .
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          # A single YAML file is passed to Trivy verbatim (the action only
+          # concatenates plain-text ignore files), so `expired_at` is honored.
+          trivyignores: .trivyignore.yaml
           exit-code: "1"
 
   trufflehog:

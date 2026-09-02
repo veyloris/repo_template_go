@@ -1,11 +1,13 @@
-### Compliance
-This repository is developed with **HIPAA**, **HITRUST**, **SOC 2**, and **ISO 27001**
-security standards in mind. All changes must account for these requirements. All data
-processed is assumed PHI. See [SECURITY.md](SECURITY.md) for controls and compliance mapping.
+### Security posture
+Security is best practice and best effort: hygiene, not audit requirements. No
+formal audit or compliance obligation exists unless this project adds one and
+says so here. The controls the scaffold ships (distroless nonroot runtime,
+digest pins, hash-pinned actions, secret and CVE scanning) are described in
+[docs/operations/security.md](docs/operations/security.md).
 
 ### Unfinished Todos
 - Replace `myapp` and `github.com/myorg/myapp` placeholders with real values via `./scripts/init-template.sh`
-- Edit `SECURITY.md` to reflect this service's actual data flow, classifications, and integrations
+- Adjust `docs/operations/security.md` once the service has real integrations
 - Confirm the "CVE triage manifest" section below reflects this service's real
   gates -- the init script rewrites the repository name, not the workflow facts
 - Replace this CLAUDE.md's "Common Tasks", "Key Paths", and "Architecture" sections with project-specific content
@@ -106,8 +108,9 @@ conflict to the user and ask for input.
   [docs/migrations/README.md](docs/migrations/README.md).
 - Backlog is GitHub issues in this repo.
 - No emojis in documentation.
-- Compliance and security controls documented in [SECURITY.md](SECURITY.md).
-  When a feature adds a data flow, SECURITY.md gains a controls subsection
+- Security controls are documented in
+  [docs/operations/security.md](docs/operations/security.md). When a feature
+  adds an integration or a destructive path, that doc gains a short section
   for it, referencing the D-### entries and plan doc that shaped it.
 
 ## CVE triage manifest

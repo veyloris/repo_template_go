@@ -120,7 +120,7 @@ rm -- "$0"
 
 echo
 echo "Done. Recommended next steps:"
-echo "  1) Edit SECURITY.md and replace [REPLACE] markers with your service's actuals."
+echo "  1) Edit docs/operations/security.md once the service has real integrations."
 echo "  2) Edit CLAUDE.md to reflect this project's architecture and conventions."
 echo "  3) Edit README.md (replace this template's content with your project's README)."
 echo "  4) git add -A && git commit -m 'chore: initial commit from repo_template_go'"

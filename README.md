@@ -14,7 +14,7 @@ Opinionated template for Go services that ship as a container image. Stand up a 
 | Lint | [golangci-lint v2](https://golangci-lint.run) with errorlint, gosec, bodyclose, contextcheck, revive, and friends |
 | Pre-commit | gitleaks, golangci-lint, gofmt, go-mod-tidy, shellcheck, JSON-schema checks for workflows and Taskfile |
 | CI | GitHub Actions: PR validate (build / vet / test -race / lint, split into a docker-free `-short` job and a full testcontainers job), main build + push, defense-in-depth security scans (Trivy filesystem, TruffleHog, Zizmor) |
-| Compliance scaffolding | `SECURITY.md` template aligned with HIPAA, SOC 2, ISO 27001, HITRUST |
+| Security hygiene | `docs/operations/security.md`: the controls the scaffold ships, stated as hygiene rather than compliance claims |
 | Process scaffolding | Decision log (`docs/DECISIONS.md`), migration-plan convention with validation appendices (`docs/migrations/`), testing and database doctrine (`docs/development/`) |
 
 ## Use this template
@@ -62,14 +62,13 @@ task lint            # golangci-lint v2
 │   ├── DECISIONS.md            # decision log: D-### entries, recorded when made
 │   ├── development/            # testing.md + database.md doctrine, local dev notes
 │   ├── migrations/             # phased plans with validation appendices (see README.md there)
-│   └── operations/             # runbooks, oncall references
+│   └── operations/             # runbooks, oncall references, security.md (controls the scaffold ships)
 ├── scripts/init-template.sh    # rename helper
 ├── .github/workflows/          # validate (PR) + build (main) + security (PR + push)
 ├── .golangci.yml               # v2 baseline; tune per project
 ├── .pre-commit-config.yaml     # gitleaks + lint + format + filesystem checks
 ├── Dockerfile                  # multi-stage distroless, digest-pinned
 ├── Taskfile.yml                # build / test / lint / fmt / vet / tidy / all
-├── SECURITY.md                 # compliance + controls (template)
 └── CLAUDE.md                   # project-level Claude Code memory (template)
 ```
 
@@ -102,11 +101,9 @@ task lint            # golangci-lint v2
 - A `Makefile`. Use Taskfile.
 - A `pkg/` directory. See above.
 
-## Compliance posture
+## Security posture
 
-This template assumes the resulting service operates under HIPAA, SOC 2, ISO 27001, and HITRUST. `SECURITY.md` documents the default controls (no-shell runtime, digest-pinned base images, nonroot user, structured audit logs, secrets via env-injection from a secret manager). When you instantiate, edit `SECURITY.md` to reflect the actual data classification, integrations, and access patterns of your service.
-
-`SECURITY.md` describes the controls this scaffold provides; it is not an attestation about your deployment. Statements there become true of your service only once you have configured it that way.
+Security here is best practice and best effort: hygiene, not audit requirements. The template makes no compliance claims and carries no audit obligations; a project that has them adds them explicitly. [docs/operations/security.md](docs/operations/security.md) describes the controls the scaffold ships (no-shell runtime, digest-pinned base images, nonroot user, hash-pinned actions, secret and CVE scanning, structured logs). It describes the scaffold, not your deployment: statements there become true of your service only once you have configured it that way.
 
 ## Reporting a vulnerability
 

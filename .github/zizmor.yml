@@ -1,10 +1,10 @@
 # Zizmor configuration, enforced in CI by .github/workflows/security.yml.
 #
-# Action pinning policy (see SECURITY.md, "CI/CD Supply Chain"):
+# Action pinning policy (see docs/operations/security.md, "Supply chain"):
 # all actions MUST be pinned to a full commit SHA (hash-pin). This template
 # uses no org-internal reusable workflows, so no ref-pin exceptions exist.
 # If your org adds reusable workflows inside its own trust boundary, add a
-# `yourorg/*: ref-pin` policy and record the rationale in SECURITY.md.
+# `yourorg/*: ref-pin` policy and record the rationale in that doc.
 rules:
   unpinned-uses:
     config:
